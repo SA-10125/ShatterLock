@@ -209,99 +209,6 @@ void vigenerre_decrypt(char *ciphertext, char *plaintext_out, int *keystream, in
     plaintext_out[strlen(ciphertext)]='\0'; //null_terminating
 }
 
-// Multiplies a set of row vectors (R1 x 26) by a 26x26 key matrix for Hill cipher encryption.
-// m1: R1 x 26 matrix (each row is a message vector)
-// key: 26x26 Hill cipher key
-// m_out: R1 x 26 output (each row is the encrypted vector as lowercase letters)
-void multiply_matrices(int R1, int m1[R1][26], int key[26][26], char m_out[R1][26]) { //copilot helped with this, pls forgive.
-    char letters[] = "abcdefghijklmnopqrstuvwxyz";
-    for (int i = 0; i < R1; i++) {
-        for (int j = 0; j < 26; j++) {
-            int sum = 0;
-            for (int k = 0; k < 26; k++) {
-                sum = (sum + m1[i][k] * key[k][j]) % 26;
-            }
-            m_out[i][j] = letters[(sum + 26) % 26];
-        }
-    }
-}
-
-// Encrypts numpacks packets using the Hill cipher key (packets_in × hillkey) //copilot helped with this, pls forgive.
-void hill_encrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
-}
-
-// Computes the inverse of a 26x26 matrix modulo 26 using Gauss-Jordan elimination.
-// Returns 1 on success, 0 if not invertible (should never happen with your construction).
-// input: the matrix to invert (26x26)
-// output: the resulting inverse (26x26)
-int modinv26(int a) { //github copilot mad ethis. pls forgive.
-    // Returns the modular inverse of a mod 26, or 0 if not invertible
-    a = a % 26;
-    for (int x = 1; x < 26; x++) {
-        if ((a * x) % 26 == 1) return x;
-    }
-    return 0;
-}
-
-int invertMatrixMod26(int input[26][26], int output[26][26]) { //github copilot made this. pls forgive.
-    int n = 26;
-    int aug[26][52];
-    // Set up augmented matrix [input | I]
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            aug[i][j] = input[i][j] % 26;
-            if (aug[i][j] < 0) aug[i][j] += 26;
-            aug[i][j + n] = (i == j) ? 1 : 0;
-        }
-    }
-    // Gauss-Jordan elimination
-    for (int col = 0; col < n; col++) {
-        // Find pivot
-        int pivot = -1;
-        for (int row = col; row < n; row++) {
-            if (aug[row][col] != 0 && modinv26(aug[row][col]) != 0) {
-                pivot = row;
-                break;
-            }
-        }
-        if (pivot == -1) return 0; // Not invertible
-        // Swap rows if needed
-        if (pivot != col) {
-            for (int k = 0; k < 2 * n; k++) {
-                int tmp = aug[col][k];
-                aug[col][k] = aug[pivot][k];
-                aug[pivot][k] = tmp;
-            }
-        }
-        // Scale pivot row
-        int inv = modinv26(aug[col][col]);
-        for (int k = 0; k < 2 * n; k++) {
-            aug[col][k] = (aug[col][k] * inv) % 26;
-            if (aug[col][k] < 0) aug[col][k] += 26;
-        }
-        // Eliminate other rows
-        for (int row = 0; row < n; row++) {
-            if (row == col) continue;
-            int factor = aug[row][col];
-            for (int k = 0; k < 2 * n; k++) {
-                aug[row][k] = (aug[row][k] - factor * aug[col][k]) % 26;
-                if (aug[row][k] < 0) aug[row][k] += 26;
-            }
-        }
-    }
-    // Extract inverse
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            output[i][j] = aug[i][j + n];
-        }
-    }
-    return 1;
-}
-
-// Decrypts numpacks packets using the Hill cipher key (by inverting the key) //copilot made this, pls forgive.
-void hill_decrypt(int numpacks, char packets_in[numpacks][26], int hillkey[26][26], char packets_out[numpacks][26]) {
-}
-
 void insertjunkintostream(char *ciphertext_in, char *ciphertext_out){
     char letters[]="abcdefghijklmnopqrstuvwxyz";
     srand(time(0));
@@ -326,60 +233,6 @@ void removejunkfromstream(char *ciphertext_in, char *ciphertext_out){  //TODO: I
             ciphertext_out[count++]=ciphertext_in[i]; //real character
     }
     ciphertext_out[count]='\0';
-}
-
-
-// New function to generate a 26x26 invertible Hill cipher key matrix
-// using the L*U construction method.
-// This method guarantees an invertible matrix modulo 26 on the first attempt.
-// Parameters:
-//   seed: The seed for the random number generator (to make key generation reproducible)
-//   hillkey_out: The output matrix (26x26) where the invertible key will be stored
-void makehillkey(int seed, int hillkey_out[26][26]) { //github copilot made this. pls forgive.
-    srand(seed); // Seed the random number generator
-    
-    // This function generates a 26x26 invertible matrix modulo 26 using the L*U construction method.
-    // The matrix is always invertible mod 26, and the process is deterministic for a given seed.
-    // L: lower-triangular with 1s on the diagonal (invertible mod 26)
-    // U: upper-triangular with random nonzero diagonal (invertible mod 26)
-    int L[26][26] = {0};
-    int U[26][26] = {0};
-    // Fill L (lower-triangular, 1s on diagonal)
-    for (int i = 0; i < 26; i++) {
-        for (int j = 0; j <= i; j++) {
-            if (i == j) {
-                L[i][j] = 1; // 1s on diagonal
-            } else {
-                L[i][j] = rand() % 26; // random element in Z26
-            }
-        }
-    }
-    // Fill U (upper-triangular, random nonzero diagonal)
-    for (int i = 0; i < 26; i++) {
-        for (int j = i; j < 26; j++) {
-            if (i == j) {
-                // Diagonal must be coprime to 26 (i.e., odd and not divisible by 13)
-                int val = (rand() % 25) + 1; // 1..25
-                while (val % 2 == 0 || val % 13 == 0) {
-                    val = (rand() % 25) + 1;
-                }
-                U[i][j] = val;
-            } else {
-                U[i][j] = rand() % 26;
-            }
-        }
-    }
-    // Multiply L and U to get the final key matrix (mod 26)
-    for (int i = 0; i < 26; i++) {
-        for (int j = 0; j < 26; j++) {
-            int sum = 0;
-            for (int k = 0; k < 26; k++) {
-                sum = (sum + L[i][k] * U[k][j]) % 26;
-            }
-            hillkey_out[i][j] = sum;
-        }
-    }
-    // Now hillkey_out is a random invertible matrix mod 26, reproducible from the seed.
 }
 
 int makefirstanswerkey(int *keystream, int len_of_keystream, char *first_answer, int *keystream_out, int seed){
@@ -447,7 +300,191 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
     }
 }
 
-int makejunk(char packets_out[][26], int hillkey[][26]){ 
+void makehillkey(int seed, int hillkey_out[5][5]){
+        int hillkey[5][5] = {
+        {1, 0, 0, 0, 0},
+        {0, 1, 0, 0, 0},
+        {0, 0, 1, 0, 0},
+        {0, 0, 0, 1, 0},
+        {0, 0, 0, 0, 1}
+    };
+    for(int i=0;i<5;i++){
+        for(int j=0;j<5;j++){
+            hillkey_out[i][j]=hillkey[i][j];
+        }
+    }
+}
+
+void multiply_matrices_first(int packets_in[][5], int hillkey[5][5], int packets_out[][5], int numpacks){ //multiplies the two matrices mod 26 //copilot made this, pls forgive. i cant be bothered ugh.
+    for(int i=0;i<numpacks;i++){
+        for(int j=0;j<5;j++){
+            packets_out[i][j]=0;
+            for(int k=0;k<5;k++){
+                packets_out[i][j]=(packets_out[i][j]+(packets_in[i][k]*hillkey[k][j]))%26;
+            }
+            packets_out[i][j] = (packets_out[i][j] % 26 + 26) % 26;
+        }
+    }
+}
+
+void multiply_matrices_flipped(int numpacks, int hillkey[5][5], int packets_in[5][numpacks], int packets_out[5][numpacks]){
+    for(int i=0;i<5;i++){
+        for(int j=0;j<numpacks;j++){
+            packets_out[i][j]=0;
+            for(int k=0;k<5;k++){
+                packets_out[i][j] = (packets_out[i][j] + hillkey[i][k] * packets_in[k][j]) % 26;
+            }
+            packets_out[i][j] = (packets_out[i][j] % 26 + 26) % 26;
+        }
+    }
+}
+
+void hillencrypt(int numpackets, int hillkey[5][5], char packets[numpackets][26], char packets_out[numpackets][26], int seed){
+    srand(seed); //this is so that repeating plaintext (i.e metadata) dont give repating ciphertext.
+    int integerpackets[numpackets][25];
+    for(int i=0;i<numpackets;i++){
+        for(int j=0;j<25;j++){ //26th is null terminator
+            integerpackets[i][j]=((int)packets[i][j])-97;
+            if(integerpackets[i][j]<0){ //for the cases with null i.e -97
+                integerpackets[i][j]=25; 
+                //26 would become z, but since the only things to do after hill with packets is to write them and 
+                // the first thing to do during decryption is reading then hill decrypt, its fine that its not in a-z.
+            }
+        }
+    }
+
+    int smallerpackets[numpackets*5][5]; //making packets of 25 into smaller packets of 5 (26th is null)
+    int counter=0, k=0;
+    for(int i=0;i<numpackets;i++){
+        for(int j=0;j<25;j++){
+            smallerpackets[counter][k++]=integerpackets[i][j];
+            if(k==5){counter++;k=0;}
+        }
+    }
+
+    int smallresult[numpackets*5][5];
+    multiply_matrices_first(smallerpackets,hillkey,smallresult,numpackets*5);
+
+    int smallflipped[5][numpackets*5];
+    //need to flip small result.
+    for(int i=0;i<numpackets*5;i++){
+        for(int j=0;j<5;j++){
+            smallflipped[j][i]=(smallresult[i][j]); //adding the countIV%27 to the ciphertext so that there is no repetetion.
+        }
+    }
+
+    int smallflippedresult[5][numpackets*5];
+    multiply_matrices_flipped(numpackets*5,hillkey,smallflipped,smallflippedresult);
+
+    int smallunflippedresult[numpackets*5][5];
+    //need to flip smallflippedresult back.
+    for(int i=0;i<numpackets*5;i++){
+        for(int j=0;j<5;j++){
+            smallunflippedresult[i][j]=smallflippedresult[j][i];
+        }
+    }
+
+    int result[numpackets][25]; //making smaller packets of 5 back into packets of 25
+    counter=0;k=0;
+    for(int i=0;i<numpackets*5;i++){
+        for(int j=0;j<5;j++){
+            result[counter][k++]=smallunflippedresult[i][j];
+            if(k==25){counter++;k=0;}
+        }
+    }
+    if(counter>numpackets){printf("ERROR: counter is greater than 25.");}
+
+    //now we convert back into characters for packets out and add null at end of each packet
+    for(int i=0;i<numpackets;i++){
+        for(int j=0;j<25;j++){ //26th is null terminator
+            packets_out[i][j]=(char)(result[i][j]+97);
+        }
+        packets_out[i][25]='\0';
+    }
+
+}
+
+void gethillkeyinverse(int hillkey[5][5], int inverse_hillkey_out[5][5]){
+    int inverse_hillkey[5][5] = {
+        {1, 0, 0, 0, 0},
+        {0, 1, 0, 0, 0},
+        {0, 0, 1, 0, 0},
+        {0, 0, 0, 1, 0},
+        {0, 0, 0, 0, 1}
+    };
+    for(int i=0;i<5;i++){
+        for(int j=0;j<5;j++){
+            inverse_hillkey_out[i][j]=inverse_hillkey[i][j];
+        }
+    }
+}
+
+void hilldecrypt(int hillkey[5][5], char encrypted_packets[][26], char packets_out[][26], int numpackets, int seed){
+
+    int encrypted_integerpackets[numpackets][25];
+    for(int i=0;i<numpackets;i++){
+        for(int j=0;j<25;j++){ //26th is null terminator
+            encrypted_integerpackets[i][j]=((int)encrypted_packets[i][j])-97; //the { will become 26 but thats ok, cause after decrypting, whatever is 26 is made 0
+        }
+    }
+
+    int encrypted_smallerpackets[numpackets*5][5]; //making packets of 25 into smaller packets of 5 (26th is null)
+    int counter=0, k=0;
+    for(int i=0;i<numpackets;i++){
+        for(int j=0;j<25;j++){
+            encrypted_smallerpackets[counter][k++]=encrypted_integerpackets[i][j];
+            if(k==5){counter++;k=0;}
+        }
+    }
+
+    int encrypted_smallflipped[5][numpackets*5]; //need to flip small result.
+    for(int i=0;i<numpackets*5;i++){
+        for(int j=0;j<5;j++){
+            encrypted_smallflipped[j][i]=encrypted_smallerpackets[i][j];
+        }
+    }
+
+    int inverse_hillkey[5][5];
+    gethillkeyinverse(hillkey,inverse_hillkey);
+
+    int lessencrypted_smallflipped[5][numpackets*5];
+    multiply_matrices_flipped(numpackets*5,inverse_hillkey,encrypted_smallflipped,lessencrypted_smallflipped);
+
+    int smallunflippedclose[numpackets*5][5]; //need to flip lessencrypted_smallflipped back.
+    srand(seed);
+    for(int i=0;i<numpackets*5;i++){
+        for(int j=0;j<5;j++){
+            smallunflippedclose[i][j]=lessencrypted_smallflipped[j][i];
+            smallunflippedclose[i][j]=(smallunflippedclose[i][j]); //subtracting the countIV%27
+        }
+    }
+
+    int smallresult[numpackets*5][5];
+    multiply_matrices_first(smallunflippedclose,inverse_hillkey,smallresult,numpackets*5);
+
+    int result[numpackets][25]; //making smaller packets of 5 back into packets of 25
+    counter=0;k=0;
+    for(int i=0;i<numpackets*5;i++){
+        for(int j=0;j<5;j++){
+            result[counter][k++]=smallresult[i][j];
+            if(k==25){counter++;k=0;}
+        }
+    }
+    if(counter>numpackets){printf("ERROR: counter is greater than 25.");}
+
+    //now we convert back into characters for packets out and add null at end of each packet
+    for(int i=0;i<numpackets;i++){
+        for(int j=0;j<25;j++){ //26th is null terminator
+            
+            packets_out[i][j]=(char)(result[i][j]+97);
+            
+        }
+        packets_out[i][25]='\0';
+    }
+    
+}
+
+int makejunk(char packets_out[26][26], int hillkey[5][5], int seed){ 
     char randtext[]="philosophyofeducationisalabelappliedtothestudyofthepurposeprocessnatureandidealsofeducationitcanbeconsideredabranchofbothphilosophyandeducationeducationcanbedefinedastheteachingandlearningofspecificskillsandtheimpartingofknowledgejudgmentandwisdomandissomethingbroaderthanthesocietalinstitutionofeducationweoftenspeakofmanyeducationalistsconsideritaweakandwoollyfieldtoofarremovedfromthepracticalapplicationsoftherealworldtobeusefulbutphilosophersdatingbacktoplatoandtheancientgreekshavegiventheareamuchthoughtandemphasisandthereislittledoubtthattheirworkhashelpedshapethepracticeofeducationoverthemillenniaplatoistheearliestimportanteducationalthinkerandeducationisanessentialelementintherepublichismostimportantworkonphilosophyandpoliticaltheorywrittenaroundbcinitheadvocatessomeratherextrememethodsremovingchildrenfromtheirmotherscareandraisingthemaswardsofthestateanddifferentiatingchildrensuitabletothevariouscastesthehighestreceivingthemosteducationsothattheycouldactasguardiansofthecityandcareforthelessablehebelievedthateducationshouldbeholisticincludingfactsskillsphysicaldisciplinemusicandartplatobelievedthattalentandintelligenceisnotdistributedgeneticallyandthusisbefoundinchildrenborntoallclassesalthoughhisproposedsystemofselectivepubliceducationforaneducatedminorityofthepopulationdoesnotreallyfollowademocraticmodelaristotleconsideredhumannaturehabitandreasontobeequallyimportantforcestobecultivatedineducationtheultimateaimofwhichshouldbetoproducegoodandvirtuouscitizensheproposedthatteachersleadtheirstudentssystematicallyandthatrepetitionbeusedasakeytooltodevelopgoodhabitsunlikesocratesemphasisonquestioninghislistenerstobringouttheirownideasheemphasizedthebalancingofthetheoreticalandpracticalaspectsofsubjectstaughtamongwhichheexplicitlymentionsreadingwritingmathematicsmusicphysicaleducationliteraturehistoryandawiderangeofsciencesaswellasplaywhichhealsoconsideredimportantduringthemedievalperiodtheideaofperennialismwasfirstformulatedbystthomasaquinashisinworkdemagistroperennialismholdsthatoneshouldteachthosethingsdeemedtobeofeverlastingimportancetoallpeopleeverywherenamelyprinciplesandreasoningnotjustfactswhichareapttochangeovertimeandthatoneshouldteachfirstaboutpeoplenotmachinesortechniquesitwasoriginallyreligiousinnatureanditwasonlymuchlaterthatatheoryofsecularperennialismdevelopedduringtherenaissancethefrenchskepticmicheldemontaignewasoneofthefirsttocriticallylookateducationunusuallyforhistimemontaignewaswillingtoquestiontheconventionalwisdomoftheperiodcallingintoquestionthewholeedificeoftheeducationalsystemandtheimplicitassumptionthatuniversityeducatedphilosopherswerenecessarilywiserthanuneducatedfarmworkersforexample";
     //were going with this rand text instead of just taking random characters one at a time so that people cant detect junk usinc Index of Coincidence.
     //this is still easily breakable.
@@ -469,8 +506,8 @@ int makejunk(char packets_out[][26], int hillkey[][26]){
 
     int num=(int)ceil(strlen(cipherrandtext)/18.0);
     char packets[num][26];
-    makepackets(cipherrandtext,packets_out); //TODO: change to packets when hill is done.
-    //hill_encrypt(num,packets,hillkey,packets_out); //TODO: yet to test
+    makepackets(cipherrandtext,packets); 
+    hillencrypt(num,hillkey,packets,packets_out,seed); //TODO: yet to test
 
     return(num);
 
@@ -678,8 +715,6 @@ int read_metadata_packet(int *key_given, int len_of_key_given, int seed){
 }
 
 void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_given, int seed_passed){
-    //TODO: CRITICAL: METADATA IS 001A002 AND HILL ENCRYPT IT MEANT TO HANDLE ONLY A-Z. ALSO CONTENTS OF PACKETS ARENT RIGHT.(so instead of 001, have it be aab or smthn like that k?)
-    //      SOMEHOW, PACKET CONTENTS ARE ENDING IN .TXT AND ARE TOO LONG. (gemini said it might be improper null termination so fprintf isnt right.)
     char ciphertext[200];
 
     vigenerre_encrypt(plaintext,ciphertext,key_given,len_of_key_given);
@@ -708,12 +743,12 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     char newpackets[numpacks][26];
 
-    int hillkey[26][26];
-    //makehillkey(seed_passed,hillkey);
-    //hill_encrypt(numpacks,packets,hillkey,newpackets); //TODO: yet to test
+    int hillkey[5][5];
+    makehillkey(seed_passed,hillkey);
+    hillencrypt(numpacks,hillkey,packets,newpackets, seed_passed); //TODO: yet to test
     //now newpackets have the final encrypted packets (even metadata is encrypted.)
 
-    int numjunk=makejunk(junk,hillkey);
+    int numjunk=makejunk(junk,hillkey, seed_passed);
 
     int junkkeylen=makejunkkeystream(junkkeystream);
 
@@ -722,7 +757,7 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
-    writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
+    writepacketsintofiles(packetpaths,numpacks,newpackets,junkpaths,numjunk,junk,key_given,len_of_key_given);
 
     printf("Encrypted and Saved.",seed_passed);
 }
@@ -833,11 +868,11 @@ void getfullplaintext(int *keystream, int len_of_key, int seed, char *plaintext_
     getpackets(numpackets,packetpaths,encrypted_packets); 
 
     char packets[numpackets][26];
-    int hillkey[26][26];
-    //makehillkey(seed,hillkey);
-    //hill_decrypt(numpackets,encrypted_packets,hillkey,packets);
+    int hillkey[5][5];
+    makehillkey(seed,hillkey);
+    hilldecrypt(hillkey,encrypted_packets,packets,numpackets,seed);
 
-    openpackets(cipherjunktext,encrypted_packets,numpackets); //TODO: change this when you impliment hill.
+    openpackets(cipherjunktext,packets,numpackets); //TODO: change this when you impliment hill.
     char ciphertext[200]; 
     removejunkfromstream(cipherjunktext,ciphertext);
     vigenerre_decrypt(ciphertext, plaintext, keystream, len_of_key);
