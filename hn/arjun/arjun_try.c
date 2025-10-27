@@ -120,7 +120,6 @@ void writetofile(char *filepath, char *contents) {
     }
 
     //-shashi till here
-    printf("Writing to file: %s\n", contents);
     fprintf(pF, "%s", contents); //puts it in and closes.
     fclose(pF);
 }
@@ -482,34 +481,12 @@ void makepackets(char *ciphertext, char packets_out[][26]){ //only works for les
     }
     char onlyletters[]="abcdefghijklmnopqrstuvwxyz";
     if (strlen(ciphertext)%18!=0){ //handling last packet if incomplete
-        if (counter<(25-8)){
-            //do pattern thing later. for now, doin
-            srand(time(0)*31); //doesnt matter cause we will recognize the pattern later based on differences in the number anyways.
-            int num=rand()%26; //our random starting number of the pattern.
-            int num2=1;
-            int no_of_junk=25-counter;
-            printf("hello");
-            temp[0]=onlyletters[no_of_junk/10]; //so 3 means d, 0 means a etc.
-            temp[1]=onlyletters[no_of_junk%10]; //so 3 means d, 0 means a etc.
-            for(int k=strlen(temp);k<25;k++){ //now for the pattern junk.
-            temp[k]=onlyletters[num%26];
-            k++;
-            temp[k]=onlyletters[rand()%26];
-            num+=num2;
-            num2++;
-        }
-        temp[25]='\0';
-        }
-    
-        else{ //if less than 8 spaces left, cannot be confident that the pattern is not random chance. hence we fill with qqqqq...
-            int no_of_junk=25-counter;
-            printf("hello");
-            temp[0]=onlyletters[no_of_junk/10]; //so 3 means d, 0 means a etc.
-            temp[1]=onlyletters[no_of_junk%10]; //so 3 means d, 0 means a etc.
-            for(int i=counter;i<25;i++){ //filling rest few chars with q (junk) TODO: find a better way
-                //(I know it looks wierd now, but when you consider we will do hill cipher after, it will not matter.)
-                temp[i]='q'; 
-            }
+        //putting junk 
+        int no_of_junk=25-counter;
+        temp[0]=onlyletters[no_of_junk/10]; //so 3 means d, 0 means a etc.
+        temp[1]=onlyletters[no_of_junk%10]; //so 3 means d, 0 means a etc.
+        for(int k=strlen(temp);k<25;k++){ //now for the junk.
+        temp[k]=onlyletters[rand()%26];
         }
         temp[25]='\0';
         strcpy(packets_out[j],temp);
@@ -721,26 +698,14 @@ void write_metadata_packet(int numpacks, int *key_given, int len_of_key_given, i
         }
     }
 
-    //TODO: IMP REMEMBER TO CHECK FOR AND REMOVE THIS PATTERN LATER WHILE READING THIS PACKET.
-    //TODO: is this a vurnerability somehow considering they can know which packet is metadata packet based on the pattern?
-    //do pattern thing. 
-    //we want to pad it with unnoticable junk which has a certain pattern to it.
-    //later for recognizing the pattern, we just check for the pattern in differences in the numbers.
-    srand(time(0)*31); //doesnt matter cause we will recognize the pattern later based on differences in the number anyways.
-    int num=rand()%26; //our random starting number of the pattern.
-    int num2=1;
-    if(strlen(temp)!=counter){printf("ERROR: metadata packet length mismatch!");exit(1);}
+    srand(9999*(seed+1+len_of_key_given)); //cause why not
+    //we want to pad it with unnoticable junk.
+    //later we just see the first two chars of the metadata and remove the junk based on that.
     int no_of_junk=25-counter;
-    printf("cipherjunktext: %s\n",cipherjunktext);
-    printf("temp: %s\n",temp);
     temp[0]=onlyletters[no_of_junk/10]; //so 3 means d, 0 means a etc.
     temp[1]=onlyletters[no_of_junk%10]; //so 3 means d, 0 means a etc.
-    for(int k=strlen(temp);k<25;k++){ //now for the pattern junk.
-        temp[k]=onlyletters[num%26];
-        k++;
+    for(int k=strlen(temp);k<25;k++){ //now for the junk.
         temp[k]=onlyletters[rand()%26];
-        num+=num2;
-        num2++;
     }
     temp[25]='\0';
     writetofile(packetpath,temp); //writing
@@ -766,15 +731,21 @@ int read_metadata_packet(int *key_given, int len_of_key_given, int seed){
     sprintf(packetpath,"storage/%s/%s.txt", subdirs[subdir_index], packetname); //prints directory name into filepath   
 
     readcontents(packetpath,cipherjunktext);
+    //remove your junk
     
-    char ciphertext[10];
+    int no_of_junk=( ((int)cipherjunktext[0]-97)*10 + ((int)cipherjunktext[1]-97) );
+    for(int i=strlen(cipherjunktext)-no_of_junk;i<strlen(cipherjunktext);i++){cipherjunktext[i]='\0';} //removing junk at end.
+    char ciphertext[10]={"/0"};
+    char temp[20]={"/0"};
+    for(int i=7;i<25;i++){temp[i-7]=cipherjunktext[i];}
 
-    removejunkfromstream(cipherjunktext,ciphertext);
+    removejunkfromstream(temp,ciphertext);
 
     char plaintext[10];
     vigenerre_decrypt(ciphertext,plaintext,key_given,len_of_key_given);
     int numpacks=((int)plaintext[1]-97);
     return(numpacks);
+    printf("%s",plaintext);
 
 }
 
@@ -782,6 +753,7 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
     //TODO: CRITICAL: METADATA IS 001A002 AND HILL ENCRYPT IT MEANT TO HANDLE ONLY A-Z. ALSO CONTENTS OF PACKETS ARENT RIGHT.(so instead of 001, have it be aab or smthn like that k?)
     //      SOMEHOW, PACKET CONTENTS ARE ENDING IN .TXT AND ARE TOO LONG. (gemini said it might be improper null termination so fprintf isnt right.)
     char ciphertext[200];
+    srand(9999*(seed_passed+1+len_of_key_given)); //cause why not
 
     vigenerre_encrypt(plaintext,ciphertext,key_given,len_of_key_given);
     //now ciphertext has vigenerre encrypted plaintext
@@ -823,14 +795,6 @@ void handle_encryption_tasks(char *plaintext, int *key_given, int len_of_key_giv
 
     getpaths(packetpaths,packetnames,numpacks,seed_passed);
 
-    checkpacks(numpacks,packets);
-    checkpacks(numjunk,junk);
-    for(int i=0;i<numpacks;i++){
-        printf("Packet %d: %s\n",i,packets[i]);
-    }
-    for(int i=0;i<numjunk;i++){
-        printf("Junk Packet %d: %s\n",i,junk[i]);
-    }
     writepacketsintofiles(packetpaths,numpacks,packets,junkpaths,numjunk,junk,key_given,len_of_key_given);
 
     printf("Encrypted and Saved.",seed_passed);
@@ -880,21 +844,23 @@ void getpackets(int numpacks, char packetnames[100][513], char packets_out[numpa
  * @param numpacks - Number of packets to process
  * Note: Skips first 7 characters (metadata) of each packet
  */
-void openpackets(char *ciphertext_out, char packets[][26], int numpacks){
+void openpackets(char *ciphertext_out, char packets[][26], int numpacks){ //same as before
     int count=0;
+    
     ciphertext_out[0]='\0';
     for(int i=0;i<numpacks;i++){
-        for(int j=7;j<26;j++){
-            if(packets[i][j]+1==packets[i][j+1] && packets[i][j+1]+2==packets[i][j+2] && packets[i][j+2]+3==packets[i][j+4])
-            {
-                packets[i][j]='\0';
-                return;
-            }
-            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){ 
+        
+    //remove your junk
+    int no_of_junk=( ((int)packets[i][0]-97)*10 + ((int)packets[i][1]-97) );
+    //for(int k=strlen(packets[i])-no_of_junk;k<strlen(packets[i]);k++){packets[i][k]='\0';} //removing junk at end.
+
+        for(int j=7;j<strlen(packets[i])-no_of_junk;j++){
+            if (packets[i][j]!='\0' && packets[i][j]>=97 && packets[i][j]<=122){
                 ciphertext_out[count++]=packets[i][j];
             }
         }
     }
+
     ciphertext_out[count]='\0';
 }
 
@@ -1048,13 +1014,13 @@ void signup(int *keystream, int len_of_key, int seed){
     for(int i=0;i<tempkeylen;i++){
         tempkey[i]=(keystream[i]+first_key[i])%26;
     }
-    //handle_encryption_tasks(plaintext, tempkey, tempkeylen, (seed*seed1));
+    handle_encryption_tasks(plaintext, tempkey, tempkeylen, (seed*seed1));
     for(int i=0;i<100;i++){second_key[i]=0;tempkey[i]=0;plaintext[i]='\0';} //for safety.
 
     //encrypting key1 from keystream 
     for(int i=0;i<key1len;i++){plaintext[i]=(char)(first_key[i]+97);}
     plaintext[99]='\0'; //praying the length of key is under 100
-    //handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
+    handle_encryption_tasks(plaintext, keystream, len_of_key, seed);
     for(int i=0;i<100;i++){first_key[i]=0;tempkey[i]=0;plaintext[i]=0;} //for safety.
 }
 
@@ -1105,7 +1071,7 @@ void my_read(int *keystream, int len_of_key, int seed){
     for(int i=0;i<tempkeylen;i++){tempkey[i]=(keystream[i]+first_key[i]+second_key[i])%26;}
     getfullplaintext(tempkey, tempkeylen, (seed*seed1*seed2), plaintext);
     for(int i=0;i<100;i++){tempkey[i]=0;first_key[i]=0;second_key[i]=0;}
-    printf("%s",plaintext);
+    printf("Contents: %s",plaintext);
 }
 
 /**
