@@ -665,7 +665,7 @@ void write_metadata_packet(int numpacks, int *key_given, int len_of_key_given, i
     plaintext[1]=onlyletters[numpacks];
     plaintext[2]='\0';
 
-    char ciphertext[10]={"/0"};
+    char ciphertext[10]={'\0'};
     vigenerre_encrypt(plaintext,ciphertext,key_given,len_of_key_given);
     char cipherjunktext[26];
     char temp[26];
@@ -735,8 +735,8 @@ int read_metadata_packet(int *key_given, int len_of_key_given, int seed){
     
     int no_of_junk=( ((int)cipherjunktext[0]-97)*10 + ((int)cipherjunktext[1]-97) );
     for(int i=strlen(cipherjunktext)-no_of_junk;i<strlen(cipherjunktext);i++){cipherjunktext[i]='\0';} //removing junk at end.
-    char ciphertext[10]={"/0"};
-    char temp[20]={"/0"};
+    char ciphertext[10]={'\0'};
+    char temp[20]={'\0'};
     for(int i=7;i<25;i++){temp[i-7]=cipherjunktext[i];}
 
     removejunkfromstream(temp,ciphertext);
