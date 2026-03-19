@@ -2,7 +2,7 @@
 
 ## C-project for Semester-2
 
-(note: repo-hn.c has ai generated comments to improve readability and make it easier for contributers to understand and contribute. my original code is in OG.c)
+(note: repo-hn.c has ai generated comments to improve readability and make it easier for contributers to understand and contribute. my original code is in OG.c. There are some functions in this which are made with AI. Have disclosed the same in the function declaration lines.)
 
 ### How to Run Current Stable Version
 
