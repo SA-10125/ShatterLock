@@ -2,6 +2,8 @@
 
 ## C-project for Semester-2
 
+(note: repo-hn.c has ai generated comments to improve readability and make it easier for contributers to understand and contribute. my original code is in OG.c)
+
 ### How to Run Current Stable Version
 
 ## Project Description
